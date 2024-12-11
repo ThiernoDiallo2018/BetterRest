@@ -12,10 +12,6 @@ struct ContentView: View {
     @State private var sleepAmount = 8.0
     @State private var coffeeAmount = 1
     
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
-    @State private var showingAlert = false
-    
     static var defaultWakeTime: Date { // For a property to be static means it below to the view. Need it to be static if we want to reference it via another property
         var components = DateComponents()
         components.hour = 7
@@ -23,44 +19,7 @@ struct ContentView: View {
         return Calendar.current.date(from: components) ?? .now
     }
     
-    var body: some View {
-        NavigationStack {
-            VStack {
-                Text("When do you want to wake up?")
-                    .font(.headline)
-                
-                DatePicker("Please enter a time", selection: $wakeUp, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-                
-                Text("Desired amount of sleep")
-                    .font(.headline)
-                
-                Stepper("\(sleepAmount.formatted()) hours", value: $sleepAmount, in: 4...12, step: 0.25)
-                
-                Text("Daily coffee intake")
-                    .font(.headline)
-                
-                Stepper("\(coffeeAmount) cup(s)", value: $coffeeAmount, in: 1...20, step: 1)
-            }
-            .navigationTitle("BetterRest")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                Button("Calculate", action: calculateBedTime)
-            }
-            .alert(alertTitle, isPresented: $showingAlert) {
-                Button("Ok") {}
-            } message: {
-                Text(alertMessage)
-            }
-            
-        }
-        
-    }
-    
-    // You want to wake up at this time so we will subtract our prediction from that so you should wake up at this time that is presented
-    
-    func calculateBedTime() { //Putting the model in a do try just in case it fails
-        
+    var sleepResults: String {
         do { //
             
             let config = MLModelConfiguration() //create an instance so we can access MLModelConfiguration
@@ -76,18 +35,43 @@ struct ContentView: View {
             let prediction = try model.prediction(wake: Double(hour + minute), estimatedSleep: sleepAmount, coffee: Double(coffeeAmount))
             let sleepTime = wakeUp - prediction.actualSleep
             
-            
-            
-            alertTitle = "Your ideal bedtime is..."
-            alertMessage = sleepTime.formatted(date: .omitted, time: .shortened)
+            return "Your ideal bedtime is " + sleepTime.formatted(date: .omitted, time: .shortened)
             
         } catch {
-        
-            alertTitle = "Error"
-            alertMessage = "Sorry, there was a problem calculating your bedtime"
+            
+            return "There was an error"
         }
-        
-        showingAlert = true
+
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                
+                Section("When do you want to Wake Up?") {
+                    DatePicker("Please enter a time", selection: $wakeUp, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                }
+                
+                Section("Desired Amount of Sleep") {
+                    Stepper("\(sleepAmount.formatted()) hours", value: $sleepAmount, in: 4...12, step: 0.25)
+                }
+                
+                Section("Daily Coffee Intake") {
+                    Picker("Number of Cups", selection: $coffeeAmount) {
+                        ForEach(0..<21) {
+                            Text(String($0))
+                        }
+                    }
+                }
+                
+                Text(sleepResults)
+                    .font(.headline)
+            }
+            .navigationTitle("BetterRest")
+            .navigationBarTitleDisplayMode(.inline)
+            .listSectionSpacing(.compact)
+        }
         
     }
 }
